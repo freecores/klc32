@@ -26,10 +26,11 @@ REGFETCHA:
 		a <= rfo;
 		b <= 32'd0;
 		Rn <= ir[20:16];
-		if (opcode==`RR || opcode==`RRR) begin
+		if (opcode==`RR || opcode==`RRR || opcode==`SW || opcode==`SH || opcode==`SB) begin
 			state <= REGFETCHB;
 		end
 		else begin
+			// RIX format ?
 			if ((hasConst16 && ir[15:0]==16'h8000) || (isStop))
 				state <= FETCH_IMM32;
 			else begin
@@ -88,6 +89,10 @@ REGFETCHA:
 					state <= IFETCH;
 				end
 			endcase
+		`R:
+			case(func)
+			`UNLK:	state <= UNLK;
+			endcase
 		`NOP: state <= IFETCH;
 		`JSR: begin tgt <= {pc[31:26],ir[25:2],2'b00}; state <= JSR1; end
 		`JMP: begin pc[25:2] <= ir[25:2]; state <= IFETCH; end
@@ -130,7 +135,6 @@ REGFETCHA:
 		`SETcc:	Rn <= ir[15:11];
 		`PUSH:	state <= PUSH1;
 		`POP:	state <= POP1;
-		`UNLK:  state <= UNLK;
 		endcase
 		if (isIllegalOpcode) begin
 			vector <= `ILLEGAL_INSN;

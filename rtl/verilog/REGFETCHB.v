@@ -27,6 +27,13 @@ REGFETCHB:
 		Rn <= ir[15:11];
 		if (opcode==`RRR || (opcode==`RR && (func==`SWX||func==`SHX||func==`SBX)))
 			state <= REGFETCHC;
-		else
-			state <= EXECUTE;
+		else begin
+			// RIX format ?
+			if ((hasConst16 && ir[15:0]==16'h8000) || (isStop))
+				state <= FETCH_IMM32;
+			else begin
+				imm <= {{16{ir[15]}},ir[15:0]};
+				state <= EXECUTE;
+			end
+		end
 	end

@@ -174,6 +174,7 @@ TAS:
 		adr_o <= ea;
 	end
 	else if (ack_i) begin
+		cyc_o <= ~dat_i[31];
 		stb_o <= 1'b0;
 		sel_o <= 4'b0000;
 		res <= dat_i;
