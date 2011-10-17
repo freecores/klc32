@@ -18,7 +18,10 @@
 //                                                                          
 // You should have received a copy of the GNU General Public License        
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.    
-//                                                                          
+//                
+//                                                   
+// Check for halted state and interrupts, then fetch instruction if no
+// halt or interrupt.
 // ============================================================================
 //
 IFETCH:
@@ -31,9 +34,9 @@ IFETCH:
 			im <= ipl_i;
 			tf <= 1'b0;
 			sf <= 1'b1;
-			iplr <= 3'd7;
-			nmi_edge <= 1'b0;
+			iplr <= ipl_i;
 			state <= INTA;
+			nmi_edge <= 1'b0;
 		end
 		else if (ipl_i > im) begin
 			sr1 <= sr;

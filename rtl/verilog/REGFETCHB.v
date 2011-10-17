@@ -29,10 +29,15 @@ REGFETCHB:
 			state <= REGFETCHC;
 		else begin
 			// RIX format ?
-			if ((hasConst16 && ir[15:0]==16'h8000) || (isStop))
+			if (hasConst16 && ir[15:0]==16'h8000)
 				state <= FETCH_IMM32;
 			else begin
-				imm <= {{16{ir[15]}},ir[15:0]};
+				case(opcode)
+				`ANDI:	imm <= {16'hFFFF,ir[15:0]};
+				`ORI:	imm <= {16'h0000,ir[15:0]};
+				`EORI:	imm <= {16'h0000,ir[15:0]};
+				default:	imm <= {{16{ir[15]}},ir[15:0]};
+				endcase
 				state <= EXECUTE;
 			end
 		end

@@ -28,7 +28,8 @@ POP1:
 	else begin
 		Rn <= ir[25:21];
 		ir[25:0] <= {ir[20:1],6'b0};
-		state <= POP2;
+		if (ir[25:21]!=5'd0)
+			state <= POP2;
 	end
 POP2:
 	begin

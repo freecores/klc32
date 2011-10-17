@@ -23,10 +23,7 @@
 //
 WRITEBACK:
 	begin
-		if (opcode==`POP)
-			state <= POP1;
-		else
-			state <= WRITE_FLAGS;
+		state <= WRITE_FLAGS;
 		if (opcode!=`CMPI && !(opcode==`RR && func==`CMP)) begin
 			regfile[Rn] <= res;
 			if (Rn==5'd31) begin
@@ -39,6 +36,7 @@ WRITEBACK:
 			case(func)
 			`ABS:
 				begin
+				if (!Rcbit) state <= IFETCH;
 				vf <= res[31];
 				cf <= 1'b0;
 				nf <= res[31];
@@ -46,6 +44,7 @@ WRITEBACK:
 				end
 			`SGN,`NOT,`EXTB,`EXTH:
 				begin
+				if (!Rcbit) state <= IFETCH;
 				vf <= 1'b0;
 				cf <= 1'b0;
 				nf <= res[31];
@@ -53,6 +52,7 @@ WRITEBACK:
 				end
 			`NEG:
 				begin
+				if (!Rcbit) state <= IFETCH;
 				vf <= v_rr;
 				cf <= c_rr;
 				nf <= res[31];
@@ -63,6 +63,7 @@ WRITEBACK:
 			case(func)
 			`ADD,`SUB:
 				begin
+				if (!Rcbit) state <= IFETCH;
 				vf <= v_rr;
 				cf <= c_rr;
 				nf <= res[31];
@@ -70,6 +71,7 @@ WRITEBACK:
 				end
 			`CMP:
 				begin
+				state <= WRITE_FLAGS;
 				vf <= 1'b0;
 				cf <= c_rr;
 				nf <= res[31];
@@ -78,6 +80,7 @@ WRITEBACK:
 			`AND,`OR,`EOR,`NAND,`NOR,`ENOR,`MIN,`MAX,
 			`LWX,`LHX,`LBX,`LHUX,`LBUX:
 				begin
+				if (!Rcbit) state <= IFETCH;
 				vf <= 1'b0;
 				cf <= 1'b0;
 				nf <= res[31];
@@ -85,6 +88,7 @@ WRITEBACK:
 				end
 			`SHL,`ROL:
 				begin
+				if (!Rcbit) state <= IFETCH;
 				vf <= 1'b0;
 				cf <= shlo[32];
 				nf <= res[31];
@@ -92,6 +96,7 @@ WRITEBACK:
 				end
 			`SHR,`ROR:
 				begin
+				if (!Rcbit) state <= IFETCH;
 				vf <= 1'b0;
 				cf <= shro[31];
 				nf <= res[31];
@@ -99,6 +104,7 @@ WRITEBACK:
 				end
 			`BCDADD:
 				begin
+				if (!Rcbit) state <= IFETCH;
 				vf <= 1'b0;
 				cf <= bcdaddc;
 				nf <= res[7];
@@ -106,10 +112,26 @@ WRITEBACK:
 				end
 			`BCDSUB:
 				begin
+				if (!Rcbit) state <= IFETCH;
 				vf <= 1'b0;
 				cf <= bcdsubc;
 				nf <= res[7];
 				zf <= res[7:0]==8'd0;
+				end
+			`DIVU,`DIVS,`MODU,`MODS:
+				begin
+				if (!Rcbit) state <= IFETCH;
+				vf <= divByZero;
+				cf <= divByZero;
+				nf <= res[31];
+				zf <= res==32'd0;
+				end
+			`MULU,`MULS,`MULUH,`MULSH:
+				begin
+				if (!Rcbit) state <= IFETCH;
+				cf <= vf;
+				nf <= res[31];
+				zf <= res==32'd0;
 				end
 			endcase
 		`ADDI,`SUBI:
@@ -133,13 +155,27 @@ WRITEBACK:
 			nf <= res[31];
 			zf <= res==32'd0;
 			end
+		`DIVSI,`DIVUI:
+			begin
+			vf <= divByZero;
+			cf <= divByZero;
+			nf <= res[31];
+			zf <= res==32'd0;
+			end
+		`MULSI,`MULUI:
+			begin
+			cf <= vf;
+			nf <= res[31];
+			zf <= res==32'd0;
+			end
+		`POP:	state <= POP1;
 		`LINK:
 			begin
 				state <= IFETCH;
 				if (sf)
-					ssp <= ssp + imm;
+					ssp <= ssp - imm;
 				else
-					usp <= usp + imm;
+					usp <= usp - imm;
 			end
 		endcase
 	end

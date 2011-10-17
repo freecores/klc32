@@ -25,21 +25,6 @@ EXECUTE:
 	begin
 		state <= WRITEBACK;
 		case(opcode)
-		`MISC:
-			case(func)
-			`STOP:
-				if (!sf) begin
-					vector <= `PRIVILEGE_VIOLATION;
-					state <= TRAP;
-				end
-				else begin
-					im <= imm[18:16];
-					tf <= imm[23];
-					sf <= imm[21];
-					clk_en <= 1'b0;
-					state <= IFETCH;
-				end
-			endcase
 		`R:
 			begin
 				case(func)
@@ -49,9 +34,60 @@ EXECUTE:
 				`NOT:	res <= ~a;
 				`EXTB:	res <= {{24{a[7]}},a[7:0]};
 				`EXTH:	res <= {{16{a[15]}},a[15:0]};
-				default:	res <= 32'd0;
-				endcase
-				case(func)
+				`MFSPR:
+					casex(ir[25:21])
+					5'b00xxx:	res <= GetCr(ir[23:21]);
+					5'b01000:	res <= cr;
+					5'b01001:	res <= usp;
+					5'b01010:	
+							if (!sf) begin
+								vector <= `PRIVILEGE_VIOLATION;
+								state <= TRAP;
+							end
+							else begin
+								res <= im;
+							end
+					5'b01111:	res <= tick;
+					endcase
+				`MTSPR:
+					casex(ir[20:16])
+					5'b00xxx:	// MTSPR CRn,Rn
+						begin
+							state <= IFETCH;
+							case(ir[18:16])
+							3'd0:	cr0 <= a[3:0];
+							3'd1:	cr1 <= a[3:0];
+							3'd2:	cr2 <= a[3:0];
+							3'd3:	cr3 <= a[3:0];
+							3'd4:	cr4 <= a[3:0];
+							3'd5:	cr5 <= a[3:0];
+							3'd6:	cr6 <= a[3:0];
+							3'd7:	cr7 <= a[3:0];
+							endcase
+						end
+					5'b01000:	// MTSPR CR,Rn
+						begin
+							state <= IFETCH;
+							cr0 <= a[3:0];
+							cr1 <= a[7:4];
+							cr2 <= a[11:8];
+							cr3 <= a[15:12];
+							cr4 <= a[19:16];
+							cr5 <= a[23:20];
+							cr6 <= a[27:24];
+							cr7 <= a[31:28];
+						end
+					5'b01001:	usp <= a;	// MTSPR USP,Rn
+					5'b01010:
+							if (!sf) begin
+								vector <= `PRIVILEGE_VIOLATION;
+								state <= TRAP;
+							end
+							else begin
+								im <= a[2:0];
+								state <= IFETCH;
+							end
+					endcase
 				`EXEC:
 					begin
 					ir <= a;
@@ -72,66 +108,17 @@ EXECUTE:
 					3'd7:	cr7 <= GetCr(ir[23:21]);
 					endcase
 					end
-				`MOV_REG2CRn:
-					begin
-					case(ir[18:16])
-					3'd0:	cr0 <= a[3:0];
-					3'd1:	cr1 <= a[3:0];
-					3'd2:	cr2 <= a[3:0];
-					3'd3:	cr3 <= a[3:0];
-					3'd4:	cr4 <= a[3:0];
-					3'd5:	cr5 <= a[3:0];
-					3'd6:	cr6 <= a[3:0];
-					3'd7:	cr7 <= a[3:0];
-					endcase
-					end
-				`MOV_CRn2REG:
-					res <= GetCr(ir[23:21]);
-				`MOV_CR2REG:
-					res <= cr;
-				`MOV_REG2CR:
-					begin
-						state <= IFETCH;
-						cr0 <= a[3:0];
-						cr1 <= a[7:4];
-						cr2 <= a[11:8];
-						cr3 <= a[15:12];
-						cr4 <= a[19:16];
-						cr5 <= a[23:20];
-						cr6 <= a[27:24];
-						cr7 <= a[31:28];
-					end
-				`MOV_REG2IM:	if (!sf) begin
-									vector <= `PRIVILEGE_VIOLATION;
-									state <= TRAP;
-								end
-								else begin
-									im <= a[2:0];
-									state <= IFETCH;
-								end
-				`MOV_IM2REG:	if (!sf) begin
-									vector <= `PRIVILEGE_VIOLATION;
-									state <= TRAP;
-								end
-								else begin
-									res <= im;
-								end
-				`MOV_USP2REG:
-						res <= usp;
-				`MOV_REG2USP:
-						usp <= a;
-				`MFTICK:
-						res <= tick;
+				default:	res <= 32'd0;
 				endcase
 			end
 		`RR:
 			begin
 				case(func)
-				`ADD:	res <= a + b;
 				`SUB:	res <= a - b;
-				`CMP:	res <= a - b;
 				`AND:	res <= a & b;
+				`ANDC:	res <= a & ~b;
 				`OR:	res <= a | b;
+				`ORC:	res <= a | ~b;
 				`EOR:	res <= a ^ b;
 				`NAND:	res <= ~(a & b);
 				`NOR:	res <= ~(a | b);
@@ -156,84 +143,6 @@ EXECUTE:
 					tgt[1:0] <= 2'b00;
 					state <= JSR1;
 				end
-				else if (func==`CROR) begin
-					state <= IFETCH;
-					case(ir[15:13])
-					3'd0:	cr0[ir[12:11]] <= GetCrBit(ir[25:21])| GetCrBit(ir[20:16]);
-					3'd1:	cr1[ir[12:11]] <= GetCrBit(ir[25:21])| GetCrBit(ir[20:16]);
-					3'd2:	cr2[ir[12:11]] <= GetCrBit(ir[25:21])| GetCrBit(ir[20:16]);
-					3'd3:	cr3[ir[12:11]] <= GetCrBit(ir[25:21])| GetCrBit(ir[20:16]);
-					3'd4:	cr4[ir[12:11]] <= GetCrBit(ir[25:21])| GetCrBit(ir[20:16]);
-					3'd5:	cr5[ir[12:11]] <= GetCrBit(ir[25:21])| GetCrBit(ir[20:16]);
-					3'd6:	cr6[ir[12:11]] <= GetCrBit(ir[25:21])| GetCrBit(ir[20:16]);
-					3'd7:	cr7[ir[12:11]] <= GetCrBit(ir[25:21])| GetCrBit(ir[20:16]);
-					endcase
-				end
-				else if (func==`CRAND) begin
-					state <= IFETCH;
-					case(ir[15:13])
-					3'd0:	cr0[ir[12:11]] <= GetCrBit(ir[25:21])& GetCrBit(ir[20:16]);
-					3'd1:	cr1[ir[12:11]] <= GetCrBit(ir[25:21])& GetCrBit(ir[20:16]);
-					3'd2:	cr2[ir[12:11]] <= GetCrBit(ir[25:21])& GetCrBit(ir[20:16]);
-					3'd3:	cr3[ir[12:11]] <= GetCrBit(ir[25:21])& GetCrBit(ir[20:16]);
-					3'd4:	cr4[ir[12:11]] <= GetCrBit(ir[25:21])& GetCrBit(ir[20:16]);
-					3'd5:	cr5[ir[12:11]] <= GetCrBit(ir[25:21])& GetCrBit(ir[20:16]);
-					3'd6:	cr6[ir[12:11]] <= GetCrBit(ir[25:21])& GetCrBit(ir[20:16]);
-					3'd7:	cr7[ir[12:11]] <= GetCrBit(ir[25:21])& GetCrBit(ir[20:16]);
-					endcase
-				end
-				else if (func==`CRXOR) begin
-					state <= IFETCH;
-					case(ir[15:13])
-					3'd0:	cr0[ir[12:11]] <= GetCrBit(ir[25:21])^ GetCrBit(ir[20:16]);
-					3'd1:	cr1[ir[12:11]] <= GetCrBit(ir[25:21])^ GetCrBit(ir[20:16]);
-					3'd2:	cr2[ir[12:11]] <= GetCrBit(ir[25:21])^ GetCrBit(ir[20:16]);
-					3'd3:	cr3[ir[12:11]] <= GetCrBit(ir[25:21])^ GetCrBit(ir[20:16]);
-					3'd4:	cr4[ir[12:11]] <= GetCrBit(ir[25:21])^ GetCrBit(ir[20:16]);
-					3'd5:	cr5[ir[12:11]] <= GetCrBit(ir[25:21])^ GetCrBit(ir[20:16]);
-					3'd6:	cr6[ir[12:11]] <= GetCrBit(ir[25:21])^ GetCrBit(ir[20:16]);
-					3'd7:	cr7[ir[12:11]] <= GetCrBit(ir[25:21])^ GetCrBit(ir[20:16]);
-					endcase
-				end
-				else if (func==`CRNOR) begin
-					state <= IFETCH;
-					case(ir[15:13])
-					3'd0:	cr0[ir[12:11]] <= ~(GetCrBit(ir[25:21])| GetCrBit(ir[20:16]));
-					3'd1:	cr1[ir[12:11]] <= ~(GetCrBit(ir[25:21])| GetCrBit(ir[20:16]));
-					3'd2:	cr2[ir[12:11]] <= ~(GetCrBit(ir[25:21])| GetCrBit(ir[20:16]));
-					3'd3:	cr3[ir[12:11]] <= ~(GetCrBit(ir[25:21])| GetCrBit(ir[20:16]));
-					3'd4:	cr4[ir[12:11]] <= ~(GetCrBit(ir[25:21])| GetCrBit(ir[20:16]));
-					3'd5:	cr5[ir[12:11]] <= ~(GetCrBit(ir[25:21])| GetCrBit(ir[20:16]));
-					3'd6:	cr6[ir[12:11]] <= ~(GetCrBit(ir[25:21])| GetCrBit(ir[20:16]));
-					3'd7:	cr7[ir[12:11]] <= ~(GetCrBit(ir[25:21])| GetCrBit(ir[20:16]));
-					endcase
-				end
-				else if (func==`CRNAND) begin
-					state <= IFETCH;
-					case(ir[15:13])
-					3'd0:	cr0[ir[12:11]] <= ~(GetCrBit(ir[25:21])& GetCrBit(ir[20:16]));
-					3'd1:	cr1[ir[12:11]] <= ~(GetCrBit(ir[25:21])& GetCrBit(ir[20:16]));
-					3'd2:	cr2[ir[12:11]] <= ~(GetCrBit(ir[25:21])& GetCrBit(ir[20:16]));
-					3'd3:	cr3[ir[12:11]] <= ~(GetCrBit(ir[25:21])& GetCrBit(ir[20:16]));
-					3'd4:	cr4[ir[12:11]] <= ~(GetCrBit(ir[25:21])& GetCrBit(ir[20:16]));
-					3'd5:	cr5[ir[12:11]] <= ~(GetCrBit(ir[25:21])& GetCrBit(ir[20:16]));
-					3'd6:	cr6[ir[12:11]] <= ~(GetCrBit(ir[25:21])& GetCrBit(ir[20:16]));
-					3'd7:	cr7[ir[12:11]] <= ~(GetCrBit(ir[25:21])& GetCrBit(ir[20:16]));
-					endcase
-				end
-				else if (func==`CRXNOR) begin
-					state <= IFETCH;
-					case(ir[15:13])
-					3'd0:	cr0[ir[12:11]] <= ~(GetCrBit(ir[25:21])^ GetCrBit(ir[20:16]));
-					3'd1:	cr1[ir[12:11]] <= ~(GetCrBit(ir[25:21])^ GetCrBit(ir[20:16]));
-					3'd2:	cr2[ir[12:11]] <= ~(GetCrBit(ir[25:21])^ GetCrBit(ir[20:16]));
-					3'd3:	cr3[ir[12:11]] <= ~(GetCrBit(ir[25:21])^ GetCrBit(ir[20:16]));
-					3'd4:	cr4[ir[12:11]] <= ~(GetCrBit(ir[25:21])^ GetCrBit(ir[20:16]));
-					3'd5:	cr5[ir[12:11]] <= ~(GetCrBit(ir[25:21])^ GetCrBit(ir[20:16]));
-					3'd6:	cr6[ir[12:11]] <= ~(GetCrBit(ir[25:21])^ GetCrBit(ir[20:16]));
-					3'd7:	cr7[ir[12:11]] <= ~(GetCrBit(ir[25:21])^ GetCrBit(ir[20:16]));
-					endcase
-				end
 				case(func)
 				`LWX:	begin ea <= a + b; mopcode <= `LW; state <= MEMORY1; end
 				`LHX:	begin ea <= a + b; mopcode <= `LH; state <= MEMORY1; end
@@ -243,6 +152,15 @@ EXECUTE:
 				`SBX:	begin ea <= a + b; mopcode <= `SB; b <= c; state <= MEMORY1; end
 				`SHX:	begin ea <= a + b; mopcode <= `SH; b <= c; state <= MEMORY1; end
 				`SWX:	begin ea <= a + b; mopcode <= `SW; b <= c; state <= MEMORY1; end
+
+				`MULU:	state <= MULTDIV1;
+				`MULS:	state <= MULTDIV1;
+				`MULUH:	state <= MULTDIV1;
+				`MULSH:	state <= MULTDIV1;
+				`DIVU:	state <= MULTDIV1;
+				`DIVS:  state <= MULTDIV1;
+				`MODU:	state <= MULTDIV1;
+				`MODS:	state <= MULTDIV1;
 				endcase
 			end
 		`SETcc:
@@ -271,7 +189,7 @@ EXECUTE:
 		`ANDI:	res <= a & imm;
 		`ORI:	res <= a | imm;
 		`EORI:	res <= a ^ imm;
-		`CRxx:
+/*
 			case(ir[20:16])
 			`ORI_CCR:
 				begin
@@ -310,7 +228,12 @@ EXECUTE:
 					cr7 <= cr7 ^ imm[31:28];
 				end
 			endcase
+*/
 		`LINK:	state <= LINK;
+		`MULUI:	state <= MULTDIV1;
+		`MULSI:	state <= MULTDIV1;
+		`DIVUI:	state <= MULTDIV1;
+		`DIVSI:	state <= MULTDIV1;
 		default:	res <= 32'd0;
 		endcase
 		case(opcode)

@@ -25,7 +25,7 @@ WRITE_FLAGS:
 	begin
 		state <= IFETCH;
 		if (opcode==`CMPI || (opcode==`RR && func==`CMP)) begin
-			case(Rn[2:0])
+			case(Rn[4:2])
 			3'd0:	cr0 <= {nf,zf,vf,cf};
 			3'd1:	cr1 <= {nf,zf,vf,cf};
 			3'd2:	cr2 <= {nf,zf,vf,cf};
@@ -41,19 +41,21 @@ WRITE_FLAGS:
 			`R:
 				case(func)
 				`ABS,`SGN,`NEG,`NOT,`EXTB,`EXTH:
-					cr0 <= {nf,zf,vf,cf};
+					if (Rcbit) cr0 <= {nf,zf,vf,cf};
 				default:	;
 				endcase
 			`RR:
 				case(func)
-				`ADD,`SUB,`AND,`OR,`EOR,`NAND,`NOR,`ENOR,
+				`MULU,`MULS,`MULUH,`MULSH,`DIVU,`DIVS,`MODU,`MODS,
+				`ADD,`SUB,`AND,`ANDC,`OR,`ORC,`EOR,`NAND,`NOR,`ENOR,
 				`MIN,`MAX,
 				`BCDADD,`BCDSUB,
 				`SHL,`SHR,`ROL,`ROR,
 				`LWX,`LHX,`LBX,`LHUX,`LBUX:
-					cr0 <= {nf,zf,vf,cf};
+					if (Rcbit) cr0 <= {nf,zf,vf,cf};
 				default:	;
-				endcase
+			endcase
+			`MULUI,`MULSI,`DIVUI,`DIVSI,
 			`ADDI,`SUBI,`ANDI,`ORI,`EORI,`LW,`LH,`LB,`LHU,`LBU,`TAS:
 				cr0 <= {nf,zf,vf,cf};
 			default:	;
