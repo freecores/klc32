@@ -40,11 +40,4 @@ RTS:
 		pc <= {dat_i[31:2],2'b00}+{ir[25:22],2'b00};
 		state <= IFETCH;
 	end
-	else if (err_i) begin
-		cyc_o <= 1'b0;
-		stb_o <= 1'b0;
-		sel_o <= 4'b0000;
-		vector <= `BUS_ERR_VECTOR;
-		state <= TRAP;
-	end
 

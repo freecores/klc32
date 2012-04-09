@@ -307,6 +307,7 @@ reg [3:0] cr0,cr1,cr2,cr3,cr4,cr5,cr6,cr7;
 wire [31:0] cr = {cr7,cr6,cr5,cr4,cr3,cr2,cr1,cr0};
 wire [31:0] sr = {tf,1'b0,sf,2'b00,im,16'd0};
 reg [31:0] tick;
+reg [31:0] be_addr;
 
 reg [5:0] cnt;
 reg [31:0] div_r0;
@@ -470,6 +471,9 @@ case(state)
 `include "MULTDIV.v"
 
 endcase
+
+`include "bus_error.v"
+
 end
 
 endmodule

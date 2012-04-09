@@ -69,10 +69,3 @@ IFETCH:
 		Rn <= dat_i[25:21];
 		state <= REGFETCHA;
 	end
-	else if (err_i) begin
-		cyc_o <= 1'b0;
-		stb_o <= 1'b0;
-		sel_o <= 4'b0000;
-		vector <= `BUS_ERR_VECTOR;
-		state <= TRAP;
-	end

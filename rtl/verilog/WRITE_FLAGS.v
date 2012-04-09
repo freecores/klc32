@@ -25,6 +25,7 @@ WRITE_FLAGS:
 	begin
 		state <= IFETCH;
 		if (opcode==`CMPI || (opcode==`RR && func==`CMP)) begin
+			$display("Writing flags to Cr%d",Rn[4:2]);
 			case(Rn[4:2])
 			3'd0:	cr0 <= {nf,zf,vf,cf};
 			3'd1:	cr1 <= {nf,zf,vf,cf};

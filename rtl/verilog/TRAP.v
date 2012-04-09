@@ -41,13 +41,6 @@ TRAP1:
 		ssp <= ssp - 32'd4;
 		state <= TRAP2;
 	end
-	else if (err_i) begin
-		cyc_o <= 1'b0;
-		stb_o <= 1'b0;
-		sel_o <= 4'b0000;
-		vector <= `BUS_ERR_VECTOR;
-		state <= TRAP;
-	end
 TRAP2:
 	if (!stb_o) begin
 		fc_o <= {3'b101};
@@ -63,13 +56,6 @@ TRAP2:
 		sel_o <= 4'b0000;
 		ssp <= ssp - 32'd4;
 		state <= TRAP3;
-	end
-	else if (err_i) begin
-		cyc_o <= 1'b0;
-		stb_o <= 1'b0;
-		sel_o <= 4'b0000;
-		vector <= `BUS_ERR_VECTOR;
-		state <= TRAP;
 	end
 TRAP3:
 	if (!stb_o) begin
@@ -87,12 +73,5 @@ TRAP3:
 		sel_o <= 4'b0000;
 		ssp <= ssp - 32'd4;
 		state <= VECTOR;
-	end
-	else if (err_i) begin
-		cyc_o <= 1'b0;
-		stb_o <= 1'b0;
-		sel_o <= 4'b0000;
-		vector <= `BUS_ERR_VECTOR;
-		state <= TRAP;
 	end
 

@@ -54,14 +54,6 @@ PUSH3:
 			usp <= usp - 32'd4;
 		state <= PUSH1;
 	end
-	else if (err_i) begin
-		cyc_o <= 1'b0;
-		stb_o <= 1'b0;
-		we_o <= 1'b0;
-		sel_o <= 4'b0000;
-		vector <= `BUS_ERR_VECTOR;
-		state <= TRAP;
-	end
 
 PEA:
 	if (!cyc_o) begin
@@ -83,14 +75,6 @@ PEA:
 		else
 			usp <= usp - 32'd4;
 		state <= IFETCH;
-	end
-	else if (err_i) begin
-		cyc_o <= 1'b0;
-		stb_o <= 1'b0;
-		we_o <= 1'b0;
-		sel_o <= 4'b0000;
-		vector <= `BUS_ERR_VECTOR;
-		state <= TRAP;
 	end
 
 LINK:
@@ -117,12 +101,4 @@ LINK:
 			res <= usp - 32'd4;
 		end
 		state <= WRITEBACK;
-	end
-	else if (err_i) begin
-		cyc_o <= 1'b0;
-		stb_o <= 1'b0;
-		we_o <= 1'b0;
-		sel_o <= 4'b0000;
-		vector <= `BUS_ERR_VECTOR;
-		state <= TRAP;
 	end

@@ -37,10 +37,3 @@ FETCH_IMM32:
 		pc <= pc + 32'd4;
 		state <= EXECUTE;
 	end
-	else if (err_i) begin
-		cyc_o <= 1'b0;
-		stb_o <= 1'b0;
-		sel_o <= 4'b0000;
-		vector <= `BUS_ERR_VECTOR;
-		state <= TRAP;
-	end

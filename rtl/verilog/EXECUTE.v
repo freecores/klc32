@@ -47,6 +47,7 @@ EXECUTE:
 							else begin
 								res <= im;
 							end
+					5'b01011:	res <= be_addr;
 					5'b01111:	res <= tick;
 					endcase
 				`MTSPR:
@@ -114,7 +115,9 @@ EXECUTE:
 		`RR:
 			begin
 				case(func)
+				`ADD:	res <= a + b;
 				`SUB:	res <= a - b;
+				`CMP:	res <= a - b;
 				`AND:	res <= a & b;
 				`ANDC:	res <= a & ~b;
 				`OR:	res <= a | b;

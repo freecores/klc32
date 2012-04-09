@@ -156,14 +156,6 @@ MEMORY1_ACK:
 				end
 		endcase
 	end
-	else if (err_i) begin
-		cyc_o <= 1'b0;
-		stb_o <= 1'b0;
-		we_o <= 1'b0;
-		sel_o <= 4'b0000;
-		vector <= `BUS_ERR_VECTOR;
-		state <= TRAP;
-	end
 
 TAS:
 	if (!cyc_o) begin
@@ -179,14 +171,6 @@ TAS:
 		sel_o <= 4'b0000;
 		res <= dat_i;
 		state <= TAS2;
-	end
-	else if (err_i) begin
-		cyc_o <= 1'b0;
-		stb_o <= 1'b0;
-		we_o <= 1'b0;
-		sel_o <= 4'b0000;
-		vector <= `BUS_ERR_VECTOR;
-		state <= TRAP;
 	end
 TAS2:
 	if (!res[31]) begin
@@ -205,14 +189,6 @@ TAS2:
 			we_o <= 1'b0;
 			sel_o <= 4'b0000;
 			state <= WRITEBACK;
-		end
-		else if (err_i) begin
-			cyc_o <= 1'b0;
-			stb_o <= 1'b0;
-			we_o <= 1'b0;
-			sel_o <= 4'b0000;
-			vector <= `BUS_ERR_VECTOR;
-			state <= TRAP;
 		end
 	end
 	else begin
