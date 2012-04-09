@@ -147,7 +147,7 @@ Module Module1
         emit(opcode)
     End Sub
 
-    Sub ProcessRRop(ByVal n As Integer, ByVal m As Integer)
+    Sub ProcessRRop(ByVal n As Integer, ByVal m As Integer, ByVal rc As Boolean)
         Dim oc As Integer
         Dim Rt As Integer
         Dim Ra As Integer
@@ -157,10 +157,28 @@ Module Module1
         Ra = GetRegister(strs(2))
         Rb = GetRegister(strs(3))
         oc = n << 26
+        oc = oc Or (Ra << 21)
+        oc = oc Or (Rb << 16)
+        oc = oc Or (Rt << 11)
+        oc = oc Or m
+        If rc Then oc = oc Or 64
+        emit(oc)
+    End Sub
+
+    Sub ProcessCRRop(ByVal n As Integer, ByVal m As Integer)
+        Dim oc As Integer
+        Dim Rt As Integer
+        Dim Ra As Integer
+        Dim Rb As Integer
+
+        Rt = GetCrRegister(strs(1))
+        Ra = GetCrRegister(strs(2))
+        Rb = GetCrRegister(strs(3))
+        oc = n << 26
         oc = oc Or Ra << 21
         oc = oc Or Rb << 16
         oc = oc Or Rt << 11
-        oc = oc Or m
+        oc = oc Or (m << 1)
         emit(oc)
     End Sub
 
@@ -176,7 +194,7 @@ Module Module1
         oc = n << 26
         oc = oc Or (Ra << 21)
         oc = oc Or (Rb << 16)
-        oc = oc Or (CRt << 11)
+        oc = oc Or (CRt << 13)
         oc = oc Or m
         emit(oc)
     End Sub
@@ -192,7 +210,7 @@ Module Module1
         imm = GetImmediate(strs(3))
         oc = n << 26
         oc = oc Or (Ra << 21)
-        oc = oc Or (CRt << 16)
+        oc = oc Or (CRt << 18)
         If imm < -32767 Or imm > 32767 Then
             oc = oc Or &H8000
             emit(oc)
@@ -225,12 +243,44 @@ Module Module1
         End If
     End Sub
 
+    Sub ProcessExec()
+        Dim oc As Integer
+        Dim Ra As Integer
+
+        Ra = GetRegister(strs(1))
+        oc = 1 << 26
+        oc = oc Or (Ra << 21)
+        oc = oc Or 63
+        emit(oc)
+    End Sub
+
     Sub ProcessOri(ByVal n As Integer)
         Dim oc As Integer
         Dim Rt As Integer
         Dim Ra As Integer
         Dim imm As Integer
 
+        If strs(1).ToLower = "cr" Then
+            imm = GetImmediate(strs(2))
+            oc = 19 << 26
+            Select Case (strs(0))
+                Case "andi"
+                    oc = oc Or (8 << 16)
+                Case "ori"
+                    oc = oc Or (9 << 16)
+                Case "eori"
+                    oc = oc Or (10 << 16)
+            End Select
+            If imm < -32767 Or imm > 32767 Then
+                oc = oc Or &H8000
+                emit(oc)
+                emit1(imm, True)
+            Else
+                oc = oc Or (imm And &HFFFF)
+                emit(oc)
+            End If
+            Return
+        End If
         Rt = GetRegister(strs(1))
         Ra = GetRegister(strs(2))
         imm = GetImmediate(strs(3))
@@ -325,6 +375,72 @@ Module Module1
         End If
     End Sub
 
+    Sub ProcessMov()
+        Dim oc As Integer
+        Dim Ra As Integer
+        Dim Rt As Integer
+        Dim Crt As Integer
+        Dim Cra As Integer
+
+        oc = 1 << 26
+        Rt = GetRegister(strs(1))
+        Ra = GetRegister(strs(2))
+        Crt = GetCrRegister(strs(1))
+        Cra = GetCrRegister(strs(2))
+        If Crt <> -1 And Cra <> -1 Then
+            oc = oc Or (Crt << 16)
+            oc = oc Or (Cra << 21)
+            oc = oc Or 48
+            emit(oc)
+            Return
+        End If
+        If Crt <> -1 And Ra <> -1 Then
+            oc = oc Or (Crt << 16)
+            oc = oc Or (Ra << 21)
+            oc = oc Or 50
+            emit(oc)
+            Return
+        End If
+        If Rt <> -1 And Cra <> -1 Then
+            oc = oc Or (Cra << 21)
+            oc = oc Or (Rt << 16)
+            oc = oc Or 49
+            emit(oc)
+            Return
+        End If
+        If Rt <> -1 Then
+            Select Case (strs(2).ToLower)
+                Case "usp"
+                    oc = oc Or (Rt << 16)
+                    oc = oc Or 33
+                    emit(oc)
+                    Return
+                Case "im"
+                    oc = oc Or (Rt << 16)
+                    oc = oc Or 54
+                    emit(oc)
+                    Return
+            End Select
+        Else
+            Select Case (strs(1))
+                ' MOV USP,Rn
+            Case "usp"
+                    oc = 1 << 26
+                    oc = oc Or (Ra << 21)
+                    oc = oc Or 32
+                    emit(oc)
+                    Return
+                    ' MOV IM,Rn
+                Case "im"
+                    oc = 1 << 26
+                    oc = oc Or (Ra << 21)
+                    oc = oc Or 53
+                    emit(oc)
+                    Return
+            End Select
+        End If
+    End Sub
+
     Sub ProcessOrg()
         Dim imm As Int32
         imm = GetImmediate(strs(1))
@@ -332,6 +448,8 @@ Module Module1
         emitLabel("")
     End Sub
 
+    ' PUSH R1/R2/R3/R4/R5
+    '
     Sub ProcessPush(ByVal n As Integer)
         Dim oc As Integer
         Dim rs() As String
@@ -355,14 +473,39 @@ Module Module1
         emit(oc)
     End Sub
 
+    ' JSR SomeSubroutine
+    ' JSR (R1+R2)
+    '
     Sub ProcessJsr(ByVal n As Integer)
         Dim oc As Integer
         Dim adr As Integer
+        Dim Ra As Integer
+        Dim Rb As Integer
+        Dim s() As String
+        Dim t() As String
+        Dim m As Integer
 
-        adr = GetImmediate(strs(1))
-        oc = n << 26
-        oc = oc Or (adr And &H3FFFFFF)
-        emit(oc)
+        Ra = 0
+        Rb = 0
+        m = strs(1).IndexOf("(")
+        If m >= 0 Then
+            s = strs(1).Split("(".ToCharArray)
+            t = s(1).Split("+".ToCharArray)
+            Ra = GetRegister(t(0))
+            If t.Length > 1 Then
+                Rb = GetRegister(t(1))
+            End If
+            oc = 2 << 26
+            oc = oc Or (Ra << 21)
+            oc = oc Or (Rb << 16)
+            oc = oc Or n
+            emit(oc)
+        Else
+            adr = GetImmediate(strs(1))
+            oc = n << 26
+            oc = oc Or (adr And &H3FFFFFF)
+            emit(oc)
+        End If
     End Sub
 
     Sub ProcessMemop(ByVal n As Integer, ByVal m As Integer)
@@ -457,31 +600,79 @@ Module Module1
             Case "org"
                 ProcessOrg()
             Case "add"
-                ProcessRRop(2, 4)
+                ProcessRRop(2, 4, False)
+            Case "add."
+                ProcessRRop(2, 4, True)
             Case "sub"
-                ProcessRRop(2, 5)
+                ProcessRRop(2, 5, False)
+            Case "sub."
+                ProcessRRop(2, 5, True)
             Case "cmp"
                 ProcessCmpOp(2, 6)
             Case "and"
-                ProcessRRop(2, 8)
+                ProcessRRop(2, 8, False)
+            Case "and."
+                ProcessRRop(2, 8, True)
             Case "or"
-                ProcessRRop(2, 9)
+                ProcessRRop(2, 9, False)
+            Case "or."
+                ProcessRRop(2, 9, True)
             Case "eor"
-                ProcessRRop(2, 10)
+                ProcessRRop(2, 10, False)
+            Case "eor."
+                ProcessRRop(2, 10, True)
             Case "nand"
-                ProcessRRop(2, 12)
+                ProcessRRop(2, 12, False)
+            Case "nand."
+                ProcessRRop(2, 12, True)
             Case "nor"
-                ProcessRRop(2, 13)
+                ProcessRRop(2, 13, False)
+            Case "nor."
+                ProcessRRop(2, 13, True)
             Case "enor"
-                ProcessRRop(2, 14)
+                ProcessRRop(2, 14, False)
+            Case "enor."
+                ProcessRRop(2, 14, True)
+            Case "cror"
+                ProcessCRRop(19, 449)
+            Case "crorc"
+                ProcessCRRop(19, 417)
+            Case "crand"
+                ProcessCRRop(19, 257)
+            Case "crandc"
+                ProcessCRRop(19, 129)
+            Case "crxor"
+                ProcessCRRop(19, 193)
+            Case "crnor"
+                ProcessCRRop(19, 33)
+            Case "crnand"
+                ProcessCRRop(19, 225)
+            Case "crxnor"
+                ProcessCRRop(19, 289)
             Case "shl"
-                ProcessRRop(2, 16)
+                ProcessRRop(2, 16, False)
+            Case "shl."
+                ProcessRRop(2, 16, True)
             Case "shr"
-                ProcessRRop(2, 17)
+                ProcessRRop(2, 17, False)
+            Case "shr."
+                ProcessRRop(2, 17, True)
             Case "rol"
-                ProcessRRop(2, 18)
+                ProcessRRop(2, 18, False)
+            Case "rol."
+                ProcessRRop(2, 18, True)
             Case "ror"
-                ProcessRRop(2, 19)
+                ProcessRRop(2, 19, False)
+            Case "ror."
+                ProcessRRop(2, 19, True)
+            Case "min"
+                ProcessRRop(2, 23, False)
+            Case "min."
+                ProcessRRop(2, 23, True)
+            Case "max"
+                ProcessRRop(2, 24, False)
+            Case "max."
+                ProcessRRop(2, 24, True)
             Case "ldi"
                 ProcessLdi(9)
             Case "addi"
@@ -620,6 +811,8 @@ Module Module1
                 ProcessMemop(2, 51)
             Case "lbux"
                 ProcessMemop(2, 52)
+            Case "jmp"
+                ProcessJsr(20)
             Case "jsr"
                 ProcessJsr(21)
             Case "push"
@@ -634,6 +827,10 @@ Module Module1
                 ProcessRts(0, 34)
             Case "stop"
                 ProcessStop(0, 53)
+            Case "mov"
+                ProcessMov()
+            Case "exec"
+                ProcessExec()
             Case Else
                 ProcessEquate()
         End Select
